@@ -10,20 +10,20 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
     s3site       = require('s3-site'),
     fs           = require('fs');
 
-  class DeployWebsite extends ServerlessPlugin {
+  class ClientDeploy extends ServerlessPlugin {
     constructor(S) {
       super(S);
     }
 
     static getName() {
-      return 'serverless.plugins.' + DeployWebsite.name;
+      return 'serverless.plugins.' + ClientDeploy.name;
     }
 
     registerActions() {
-      this.S.addAction(this.deployWebsite.bind(this), {
-        handler:       'deployWebsite',
-        description:   `Deploy your serverless static site to S3 Website Bucket.`,
-        context:       'website',
+      this.S.addAction(this.clientDeploy.bind(this), {
+        handler:       'clientDeploy',
+        description:   `Deploy your Serverless clients to S3 Website Bucket.`,
+        context:       'client',
         contextAction: 'deploy',
         options:       [
           {
@@ -34,17 +34,13 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
             option:      'region',
             shortcut:    'r',
             description: 'Optional - add URL prefix to each lambda'
-          }, {
-            option:      'all',
-            shortcut:    'a',
-            description: 'Optional - Deploy all Websites'
           }
         ]
       });
       return BbPromise.resolve();
     }
 
-    deployWebsite(evt) {
+    clientDeploy(evt) {
 
       let _this     = this;
       _this.evt     = evt;
@@ -55,13 +51,11 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         // Prompt: Stage
         if (!_this.S.config.interactive || _this.evt.options.stage) return resolve();
 
-        if (!_this.S.state.meta.getStages().length) return reject(new SError('No existing stages in the project'));
-
-        return _this.cliPromptSelectStage('Website Deployer - Choose a stage: ', _this.evt.options.stage, false)
+        return _this.cliPromptSelectStage('Client Deployer - Choose a stage: ', _this.evt.options.stage, false)
           .then(stage => {
-          _this.evt.options.stage = stage;
-        return resolve();
-      })
+            _this.evt.options.stage = stage;
+            return resolve();
+          })
       })
         .bind(_this)
         .then(_this._validateAndPrepare)
@@ -71,9 +65,9 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
           // Line for neatness
           SCli.log('------------------------');
 
-          // Display Failed Website Deployments
+          // Display Failed Client Deployments
           if (_this.failed) {
-            SCli.log('Failed to deploy the following websites in "'
+            SCli.log('Failed to deploy the following clients in "'
               + _this.evt.options.stage
               + '" to the following regions:');
             // Display Errors
@@ -81,17 +75,17 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
               let region = _this.failed[Object.keys(_this.failed)[i]];
               SCli.log(Object.keys(_this.failed)[i] + ' ------------------------');
               for (let j = 0; j < region.length; j++) {
-                SCli.log('  ' + region[j].websiteName + ': ' + region[j].message );
+                SCli.log('  ' + region[j].client + ': ' + region[j].message );
                 SUtils.sDebug(region[j].stack);
               }
             }
           }
 
-          // Display Successful Website Deployments
+          // Display Successful Client Deployments
           if (_this.deployed) {
 
             // Status
-            SCli.log('Successfully deployed websites in "'
+            SCli.log('Successfully deployed clients in "'
               + _this.evt.options.stage
               + '" to the following regions: ');
 
@@ -100,7 +94,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
               let region = _this.deployed[Object.keys(_this.deployed)[i]];
               SCli.log(Object.keys(_this.deployed)[i] + ' ------------------------');
               for (let j = 0; j < region.length; j++) {
-                SCli.log('  ' + region[j].websiteName);
+                SCli.log('  ' + region[j].client);
               }
             }
           }
@@ -121,11 +115,21 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
       let _this = this;
 
-      // Set Defaults
-      _this.evt.options.stage = _this.evt.options.stage ? _this.evt.options.stage : null;
+      if (!SUtils.dirExistsSync(path.join(_this.S.config.projectPath, 'clients'))) {
+        return BbPromise.reject(new SError('Could not find "clients" folder in your project root.'));
+      }
 
-      // Validate Stage
-      if (!_this.evt.options.stage) throw new SError(`Stage is required`);
+      // validate stage: make sure stage exists
+      if (!_this.S.state.meta.get().stages[_this.evt.options.stage] && _this.evt.options.stage != 'local') {
+        return BbPromise.reject(new SError('Stage ' + _this.evt.options.stage + ' does not exist in your project', SError.errorCodes.UNKNOWN));
+      }
+
+      // validate region if provided: make sure region exists in stage
+      if (_this.evt.options.region) {
+        if (!_this.S.state.meta.get().stages[_this.evt.options.stage].regions[_this.evt.options.region]) {
+          return BbPromise.reject(new SError('Region "' + _this.evt.options.region + '" does not exist in stage "' + _this.evt.options.stage + '"'));
+        }
+      }
 
       // Instantiate Classes
       _this.project  = _this.S.state.getProject();
@@ -134,8 +138,11 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
       // Set Deploy Regions
       _this.regions  = _this.evt.options.region ? [_this.evt.options.region] : _this.S.state.getRegions(_this.evt.options.stage);
 
-      _this.websiteName = SUtils.readAndParseJsonSync(path.join(_this.S.config.projectPath, 'client', 's-client-s3.json')).name;
-      _this.websitepath = SUtils.readAndParseJsonSync(path.join(_this.S.config.projectPath, 'client')).name;
+      _this.clients = fs.readdirSync(path.join(_this.S.config.projectPath, 'clients')).filter(function(file) {
+        return fs.statSync(path.join(path.join(_this.S.config.projectPath, 'clients'), file)).isDirectory();
+      });
+
+
 
       return BbPromise.resolve();
     }
@@ -145,7 +152,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
       let _this = this;
 
       // Status
-      SCli.log('Deploying websites in "'
+      SCli.log('Deploying clients in "'
         + _this.evt.options.stage
         + '" to the following regions: '
         + _this.regions.join(', '));
@@ -159,8 +166,8 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         .bind(_this)
         .each(function(region) {
 
-          // Deploy websites in each region
-          return _this._deployWebsitesByRegion(region);
+          // Deploy clients in each region
+          return _this._clientDeployByRegion(region);
         })
         .then(function() {
 
@@ -169,20 +176,16 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         });
     }
 
-    _deployWebsitesByRegion(region) {
+    _clientDeployByRegion(region) {
       let _this = this;
-
       s3site.deploy({
-        name    : _this.evt.options.stage + ,
-        env     : [env],
-        prefix  : [prefix],
+        name    : client + '.' + _this.evt.options.stage + '.serverless.client',
         region  : region,
-        srcPath : [src]
+        srcPath : path.join(_this.S.config.projectPath, 'clients', client)
       });
-
     }
 
 
   }
-  return DeployWebsite;
+  return ClientDeploy;
 };
