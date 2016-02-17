@@ -1,0 +1,39 @@
+{
+  "name": "serverless-client-3",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=4.0"
+  },
+  "description": "Deploy your serverless static site to S3 Website Bucket.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/serverless/serverless-client-s3.git"
+  },
+  "keywords": [
+    "serverless",
+    "serverless plugins",
+    "lambda",
+    "aws",
+    "aws lambda",
+    "amazon",
+    "amazon web services",
+    "s3",
+    "website",
+    "frontend",
+    "serverless.com"
+  ],
+  "author": "Eslam A. Hefnawy",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/serverless/serverless-client-s3/issues"
+  },
+  "homepage": "https://github.com/serverless/serverless-client-s3#readme",
+  "dependencies": {
+    "s3-site": "^0.1.1",
+    "bluebird": "^3.0.6"
+  }
+}
