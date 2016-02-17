@@ -1,5 +1,5 @@
 {
-  "name": "serverless-client-3",
+  "name": "serverless-client-s3",
   "version": "0.0.1",
   "engines": {
     "node": ">=4.0"
