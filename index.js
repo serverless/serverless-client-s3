@@ -131,6 +131,8 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         }
       }
 
+
+
       // Instantiate Classes
       _this.project  = _this.S.state.getProject();
       _this.meta     = _this.S.state.getMeta();
@@ -178,12 +180,103 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
     _clientDeployByRegion(region) {
       let _this = this;
+
+
+      let awsConfig  = {
+        region:          region,
+        accessKeyId:     _this.S.config.awsAdminKeyId,
+        secretAccessKey: _this.S.config.awsAdminSecretKey
+      };
+
+      _this.S3       = require('../utils/aws/S3')(awsConfig);
+
       s3site.deploy({
         name    : client + '.' + _this.evt.options.stage + '.serverless.client',
         region  : region,
         srcPath : path.join(_this.S.config.projectPath, 'clients', client)
       });
     }
+
+
+    _destroyBucket() {
+      let _this = this;
+
+      let params = {
+        Bucket: '' // MISSING
+      };
+
+      return _this.S3.headBucket(params)
+        .then(function(){
+          return _this.S3.listObjects(params);
+        })
+        .then(function(data){
+          if (!data.contents[0]) {
+            return BbPromise.resolve();
+          } else {
+            let Objects = _.map(data.contents, function (content) {
+              return _.pick(content, 'Key');
+            });
+
+            let params = {
+              Bucket: '', // MISSING
+              Delete: { Objects: Objects }
+            };
+
+            return _this.S3.deleteObjects(params);
+          }
+        })
+        .then(function(){
+
+          let params = {
+            Bucket: '' // MISSING
+          };
+
+          return _this.S3.deleteBucket(params);
+        })
+        .catch(function(err) {
+          if (err.statusCode == 404) {
+            return BbPromise.resolve();
+          } else {
+            return BbPromise.reject();
+          }
+        })
+    }
+
+    _createBucket(region) {
+      let _this = this;
+
+      let params = {
+        Bucket: '' // MISSING
+      };
+
+      return _this.S3.createBucket(params)
+        .then(function() {
+          let params = {
+            Bucket: '', // MISSING
+            WebsiteConfiguration: {
+              IndexDocument: { Suffix: 'index.html' }
+            }
+          };
+
+          return _this.S3.putBucketWebsite(params)
+        })
+        .then(function() {
+          let policy = {} // MISSING
+          policy.Statement[0].Resource += this.bucketName + '/*';
+
+          let params = {
+            Bucket: '', // MISSING
+            Policy: JSON.stringify(policy)
+          };
+
+          return _this.S3.putBucketPolicy(params)
+        })
+    }
+
+    _uploadContent(region) {
+      let _this = this;
+    }
+
 
 
   }
