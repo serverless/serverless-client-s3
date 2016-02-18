@@ -140,7 +140,6 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
       // Set Deploy Regions
       _this.regions  = _this.evt.options.region ? [_this.evt.options.region] : _this.S.state.getRegions(_this.evt.options.stage);
       _this.clientPath = path.join(_this.S.config.projectPath, 'client', 'dist');
-      _this.bucketName = `${_this.project.name}.client.${_this.evt.options.stage}.${_this.evt.options.region}`;
 
       //_this.clients = fs.readdirSync(path.join(_this.S.config.projectPath, 'clients')).filter(function(file) {
       //  return fs.statSync(path.join(path.join(_this.S.config.projectPath, 'clients'), file)).isDirectory();
@@ -178,9 +177,11 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
           _this.S3 = require('../utils/aws/S3')(awsConfig);
 
+          _this.bucketName = `${_this.project.name}.client.${_this.evt.options.stage}.${region}`;
+
           return _this._destroyBucket()
             .bind(_this)
-            .then(_this._createBucket)
+            .then(_this._createBucket())
             .then(_this._uploadDirectory(region, _this.clientPath))
 
         })
@@ -188,7 +189,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
           // Stop Spinner
           _this._spinner.stop(true);
-        });
+        })
     }
 
 
@@ -204,10 +205,11 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
           return _this.S3.listObjectsPromised(params);
         })
         .then(function(data){
-          if (!data.contents[0]) {
+          console.log(data)
+          if (!data.Contents[0]) {
             return BbPromise.resolve();
           } else {
-            let Objects = _.map(data.contents, function (content) {
+            let Objects = _.map(data.Contents, function (content) {
               return _.pick(content, 'Key');
             });
 
@@ -229,16 +231,19 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         })
         .catch(function(err) {
           if (err.statusCode == 404) {
+            console.log('doesnt exist')
             return BbPromise.resolve();
           } else {
-            return BbPromise.reject();
+            console.log('dude')
+            throw new Error(e);
+            return BbPromise.reject(err);
           }
         })
     }
 
     _createBucket() {
+      console.log('creating')
       let _this = this;
-
       let params = {
         Bucket: _this.bucketName
       };
@@ -266,11 +271,10 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
                   AWS: "*"
                 },
                 Action: "s3:GetObject",
-                Resource: "arn:aws:s3:::"
+                Resource: "arn:aws:s3:::" + _this.bucketName + '/*'
               }
             ]
           };
-          policy.Statement[0].Resource += _this.bucketName + '/*';
 
           let params = {
             Bucket: _this.bucketName,
@@ -315,7 +319,8 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
       let S3 = require('../utils/aws/S3')(awsConfig);
 
-      fs.readFile(filePath, _.bind(function (err, fileBuffer) {
+      fs.readFile(filePath, function(err, fileBuffer) {
+
         let params = {
           Bucket: bucketName,
           Key: fileKey,
@@ -325,8 +330,8 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
         // TODO: remove browser caching
 
-        return S3.putObject(params);
-      }, this));
+        return S3.putObjectPromised(params);
+      });
 
     }
 
