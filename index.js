@@ -8,6 +8,8 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
     BbPromise    = require('bluebird'),
     async        = require('async'),
     s3site       = require('s3-site'),
+    _            = require('lodash'),
+    mime         = require('mime'),
     fs           = require('fs');
 
   class ClientDeploy extends ServerlessPlugin {
@@ -115,8 +117,8 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
       let _this = this;
 
-      if (!SUtils.dirExistsSync(path.join(_this.S.config.projectPath, 'clients'))) {
-        return BbPromise.reject(new SError('Could not find "clients" folder in your project root.'));
+      if (!SUtils.dirExistsSync(path.join(_this.S.config.projectPath, 'client', 'dist'))) {
+        return BbPromise.reject(new SError('Could not find "client/dist" folder in your project root.'));
       }
 
       // validate stage: make sure stage exists
@@ -131,18 +133,18 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         }
       }
 
-
-
       // Instantiate Classes
       _this.project  = _this.S.state.getProject();
       _this.meta     = _this.S.state.getMeta();
 
       // Set Deploy Regions
       _this.regions  = _this.evt.options.region ? [_this.evt.options.region] : _this.S.state.getRegions(_this.evt.options.stage);
+      _this.clientPath = path.join(_this.S.config.projectPath, 'client', 'dist');
+      _this.bucketName = `${_this.project.name}.client.${_this.evt.options.stage}.${_this.evt.options.region}`;
 
-      _this.clients = fs.readdirSync(path.join(_this.S.config.projectPath, 'clients')).filter(function(file) {
-        return fs.statSync(path.join(path.join(_this.S.config.projectPath, 'clients'), file)).isDirectory();
-      });
+      //_this.clients = fs.readdirSync(path.join(_this.S.config.projectPath, 'clients')).filter(function(file) {
+      //  return fs.statSync(path.join(path.join(_this.S.config.projectPath, 'clients'), file)).isDirectory();
+      //});
 
 
 
@@ -168,8 +170,19 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         .bind(_this)
         .each(function(region) {
 
-          // Deploy clients in each region
-          return _this._clientDeployByRegion(region);
+          let awsConfig  = {
+            region:          region,
+            accessKeyId:     _this.S.config.awsAdminKeyId,
+            secretAccessKey: _this.S.config.awsAdminSecretKey
+          };
+
+          _this.S3 = require('../utils/aws/S3')(awsConfig);
+
+          return _this._destroyBucket()
+            .bind(_this)
+            .then(_this._createBucket)
+            .then(_this._uploadDirectory(region, _this.clientPath))
+
         })
         .then(function() {
 
@@ -178,36 +191,17 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         });
     }
 
-    _clientDeployByRegion(region) {
-      let _this = this;
-
-
-      let awsConfig  = {
-        region:          region,
-        accessKeyId:     _this.S.config.awsAdminKeyId,
-        secretAccessKey: _this.S.config.awsAdminSecretKey
-      };
-
-      _this.S3       = require('../utils/aws/S3')(awsConfig);
-
-      s3site.deploy({
-        name    : client + '.' + _this.evt.options.stage + '.serverless.client',
-        region  : region,
-        srcPath : path.join(_this.S.config.projectPath, 'clients', client)
-      });
-    }
-
 
     _destroyBucket() {
       let _this = this;
 
       let params = {
-        Bucket: '' // MISSING
+        Bucket: _this.bucketName
       };
 
-      return _this.S3.headBucket(params)
+      return _this.S3.headBucketPromised(params)
         .then(function(){
-          return _this.S3.listObjects(params);
+          return _this.S3.listObjectsPromised(params);
         })
         .then(function(data){
           if (!data.contents[0]) {
@@ -218,20 +212,20 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
             });
 
             let params = {
-              Bucket: '', // MISSING
+              Bucket: _this.bucketName,
               Delete: { Objects: Objects }
             };
 
-            return _this.S3.deleteObjects(params);
+            return _this.S3.deleteObjectsPromised(params);
           }
         })
         .then(function(){
 
           let params = {
-            Bucket: '' // MISSING
+            Bucket: _this.bucketName
           };
 
-          return _this.S3.deleteBucket(params);
+          return _this.S3.deleteBucketPromised(params);
         })
         .catch(function(err) {
           if (err.statusCode == 404) {
@@ -242,42 +236,99 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         })
     }
 
-    _createBucket(region) {
+    _createBucket() {
       let _this = this;
 
       let params = {
-        Bucket: '' // MISSING
+        Bucket: _this.bucketName
       };
 
-      return _this.S3.createBucket(params)
+      return _this.S3.createBucketPromised(params)
         .then(function() {
           let params = {
-            Bucket: '', // MISSING
+            Bucket: _this.bucketName,
             WebsiteConfiguration: {
               IndexDocument: { Suffix: 'index.html' }
             }
           };
 
-          return _this.S3.putBucketWebsite(params)
+          return _this.S3.putBucketWebsitePromised(params);
         })
         .then(function() {
-          let policy = {} // MISSING
-          policy.Statement[0].Resource += this.bucketName + '/*';
+          let policy = {
+            Version: "2008-10-17",
+            Id: "Policy1392681112290",
+            Statement: [
+              {
+                Sid: "Stmt1392681101677",
+                Effect: "Allow",
+                Principal: {
+                  AWS: "*"
+                },
+                Action: "s3:GetObject",
+                Resource: "arn:aws:s3:::"
+              }
+            ]
+          };
+          policy.Statement[0].Resource += _this.bucketName + '/*';
 
           let params = {
-            Bucket: '', // MISSING
+            Bucket: _this.bucketName,
             Policy: JSON.stringify(policy)
           };
 
-          return _this.S3.putBucketPolicy(params)
-        })
+          return _this.S3.putBucketPolicyPromised(params);
+        });
     }
 
-    _uploadContent(region) {
-      let _this = this;
+    _uploadDirectory(region, directoryPath) {
+      let _this         = this,
+        readDirectory = _.partial(fs.readdir, directoryPath);
+
+      async.waterfall([readDirectory, function (files) {
+        files = _.map(files, function(file) {
+          return path.join(directoryPath, file);
+        });
+
+        async.each(files, function(path) {
+          fs.stat(path, _.bind(function (err, stats) {
+
+            return stats.isDirectory()
+              ? _this._uploadDirectory(region, path)
+              : _this._uploadFile(region, path);
+          }, _this));
+        });
+      }]);
+
     }
 
+    _uploadFile(region, filePath) {
+      let _this      = this,
+        fileKey    = filePath.replace(_this.clientPath, '').substr(1),
+        bucketName = `${_this.project.name}.client.${_this.evt.options.stage}.${region}`;
 
+      let awsConfig  = {
+        region:          region,
+        accessKeyId:     _this.S.config.awsAdminKeyId,
+        secretAccessKey: _this.S.config.awsAdminSecretKey
+      };
+
+      let S3 = require('../utils/aws/S3')(awsConfig);
+
+      fs.readFile(filePath, _.bind(function (err, fileBuffer) {
+        let params = {
+          Bucket: bucketName,
+          Key: fileKey,
+          Body: fileBuffer,
+          ContentType: mime.lookup(filePath)
+        };
+
+        // TODO: remove browser caching
+
+        return S3.putObject(params);
+      }, this));
+
+    }
 
   }
   return ClientDeploy;
