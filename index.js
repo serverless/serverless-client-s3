@@ -7,7 +7,6 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
     SCli         = require(path.join(serverlessPath, 'utils/cli')),
     BbPromise    = require('bluebird'),
     async        = require('async'),
-    s3site       = require('s3-site'),
     _            = require('lodash'),
     mime         = require('mime'),
     fs           = require('fs');
@@ -48,70 +47,45 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
       _this.evt     = evt;
 
       // Flow
-      return new BbPromise(function(resolve, reject) {
-
-        // Prompt: Stage
-        if (!_this.S.config.interactive || _this.evt.options.stage) return resolve();
-
-        return _this.cliPromptSelectStage('Client Deployer - Choose a stage: ', _this.evt.options.stage, false)
-          .then(stage => {
-            _this.evt.options.stage = stage;
-            return resolve();
-          })
-      })
+      return _this._prompt()
         .bind(_this)
         .then(_this._validateAndPrepare)
         .then(_this._processDeployment)
         .then(function() {
 
-          // Line for neatness
-          SCli.log('------------------------');
+          _this._spinner.stop(true);
 
-          // Display Failed Client Deployments
-          if (_this.failed) {
-            SCli.log('Failed to deploy the following clients in "'
-              + _this.evt.options.stage
-              + '" to the following regions:');
-            // Display Errors
-            for (let i = 0; i < Object.keys(_this.failed).length; i++) {
-              let region = _this.failed[Object.keys(_this.failed)[i]];
-              SCli.log(Object.keys(_this.failed)[i] + ' ------------------------');
-              for (let j = 0; j < region.length; j++) {
-                SCli.log('  ' + region[j].client + ': ' + region[j].message );
-                SUtils.sDebug(region[j].stack);
-              }
-            }
-          }
+          // display friendly message after all async operations (file uploads) are finished
+          process.on('exit', function (){
+            SCli.log(`Successfully deployed client to: ${_this.bucketName}.s3-website-${_this.evt.options.region}.amazonaws.com`);
+          });
 
-          // Display Successful Client Deployments
-          if (_this.deployed) {
-
-            // Status
-            SCli.log('Successfully deployed clients in "'
-              + _this.evt.options.stage
-              + '" to the following regions: ');
-
-            // Display Websites
-            for (let i = 0; i < Object.keys(_this.deployed).length; i++) {
-              let region = _this.deployed[Object.keys(_this.deployed)[i]];
-              SCli.log(Object.keys(_this.deployed)[i] + ' ------------------------');
-              for (let j = 0; j < region.length; j++) {
-                SCli.log('  ' + region[j].client);
-              }
-            }
-          }
-
-          /**
-           * Return EVT
-           */
-
-          _this.evt.data.deployed = _this.deployed;
-          _this.evt.data.failed   = _this.failed;
           return _this.evt;
 
         });
 
     }
+
+
+    _prompt() {
+
+      let _this = this;
+
+      return _this.cliPromptSelectStage('Client Deployer - Choose Stage: ', _this.evt.options.stage, true)
+        .then(stage => {
+          _this.evt.options.stage = stage;
+          BbPromise.resolve();
+        })
+        .then(function(){
+          return _this.cliPromptSelectRegion('Client Deployer - Choose Region: ', true, true, _this.evt.options.region, _this.evt.options.stage)
+            .then(region => {
+              _this.evt.options.region = region;
+              BbPromise.resolve();
+            });
+        });
+
+    }
+
 
     _validateAndPrepare() {
 
@@ -126,26 +100,24 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         return BbPromise.reject(new SError('Stage ' + _this.evt.options.stage + ' does not exist in your project', SError.errorCodes.UNKNOWN));
       }
 
-      // validate region if provided: make sure region exists in stage
-      if (_this.evt.options.region) {
-        if (!_this.S.state.meta.get().stages[_this.evt.options.stage].regions[_this.evt.options.region]) {
-          return BbPromise.reject(new SError('Region "' + _this.evt.options.region + '" does not exist in stage "' + _this.evt.options.stage + '"'));
-        }
+      // make sure region exists in stage
+      if (!_this.S.state.meta.get().stages[_this.evt.options.stage].regions[_this.evt.options.region]) {
+        return BbPromise.reject(new SError('Region "' + _this.evt.options.region + '" does not exist in stage "' + _this.evt.options.stage + '"'));
       }
 
-      // Instantiate Classes
+
+      let awsConfig  = {
+        region:          _this.evt.options.region,
+        accessKeyId:     _this.S.config.awsAdminKeyId,
+        secretAccessKey: _this.S.config.awsAdminSecretKey
+      };
+
       _this.project  = _this.S.state.getProject();
       _this.meta     = _this.S.state.getMeta();
-
-      // Set Deploy Regions
-      _this.regions  = _this.evt.options.region ? [_this.evt.options.region] : _this.S.state.getRegions(_this.evt.options.stage);
+      //_this.S3 = require('../utils/aws/S3')(awsConfig);
+      _this.S3 = require(path.join(serverlessPath, '/utils/aws/S3'))(awsConfig);
+      _this.bucketName = `${_this.project.name}.client.${_this.evt.options.stage}.${_this.evt.options.region}`;
       _this.clientPath = path.join(_this.S.config.projectPath, 'client', 'dist');
-
-      //_this.clients = fs.readdirSync(path.join(_this.S.config.projectPath, 'clients')).filter(function(file) {
-      //  return fs.statSync(path.join(path.join(_this.S.config.projectPath, 'clients'), file)).isDirectory();
-      //});
-
-
 
       return BbPromise.resolve();
     }
@@ -155,57 +127,36 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
       let _this = this;
 
       // Status
-      SCli.log('Deploying clients in "'
-        + _this.evt.options.stage
-        + '" to the following regions: '
-        + _this.regions.join(', '));
+      SCli.log('Deploying client to stage "' + _this.evt.options.stage + '" in region "' + _this.evt.options.region + '"');
 
       _this._spinner = SCli.spinner();
       _this._spinner.start();
 
-      return BbPromise.try(function() {
-          return _this.regions;
-        })
+      return _this.S3.listBucketsPromised()
         .bind(_this)
-        .each(function(region) {
-
-          let awsConfig  = {
-            region:          region,
-            accessKeyId:     _this.S.config.awsAdminKeyId,
-            secretAccessKey: _this.S.config.awsAdminSecretKey
-          };
-
-          _this.S3 = require('../utils/aws/S3')(awsConfig);
-
-          _this.bucketName = `${_this.project.name}.client.${_this.evt.options.stage}.${region}`;
-
-          return _this._destroyBucket()
-            .bind(_this)
-            .then(_this._createBucket())
-            .then(_this._uploadDirectory(region, _this.clientPath))
-
+        .then(function(data) {
+          data.Buckets.forEach(function(bucket) {
+            if (bucket.Name === _this.bucketName) {
+              _this.bucketExists = true;
+              SUtils.sDebug(`Bucket ${_this.bucketName} already exists`);
+            }
+          });
         })
-        .then(function() {
-
-          // Stop Spinner
-          _this._spinner.stop(true);
-        })
-    }
-
-
-    _destroyBucket() {
-      let _this = this;
-
-      let params = {
-        Bucket: _this.bucketName
-      };
-
-      return _this.S3.headBucketPromised(params)
         .then(function(){
+          if (!_this.bucketExists) return BbPromise.resolve();
+
+          SUtils.sDebug(`Listing objects in bucket ${_this.bucketName}...`);
+
+          let params = {
+            Bucket: _this.bucketName
+          };
           return _this.S3.listObjectsPromised(params);
         })
         .then(function(data){
-          console.log(data)
+          if (!_this.bucketExists) return BbPromise.resolve();
+
+          SUtils.sDebug(`Deleting all objects from bucket ${_this.bucketName}...`);
+
           if (!data.Contents[0]) {
             return BbPromise.resolve();
           } else {
@@ -219,37 +170,31 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
             };
 
             return _this.S3.deleteObjectsPromised(params);
-          }
-        })
+          }})
         .then(function(){
+          if (!_this.bucketExists) return BbPromise.resolve();
+
+          SUtils.sDebug(`Deleting bucket ${_this.bucketName}...`);
 
           let params = {
             Bucket: _this.bucketName
           };
 
-          return _this.S3.deleteBucketPromised(params);
-        })
-        .catch(function(err) {
-          if (err.statusCode == 404) {
-            console.log('doesnt exist')
-            return BbPromise.resolve();
-          } else {
-            console.log('dude')
-            throw new Error(e);
-            return BbPromise.reject(err);
-          }
-        })
-    }
+          return _this.S3.deleteBucketPromised(params);})
+        .then(function(){
 
-    _createBucket() {
-      console.log('creating')
-      let _this = this;
-      let params = {
-        Bucket: _this.bucketName
-      };
+          SUtils.sDebug(`Creating bucket ${_this.bucketName}...`);
 
-      return _this.S3.createBucketPromised(params)
-        .then(function() {
+          let params = {
+            Bucket: _this.bucketName
+          };
+
+          return _this.S3.createBucketPromised(params)
+        })
+        .then(function(){
+
+          SUtils.sDebug(`Configuring website bucket ${_this.bucketName}...`);
+
           let params = {
             Bucket: _this.bucketName,
             WebsiteConfiguration: {
@@ -259,7 +204,10 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
           return _this.S3.putBucketWebsitePromised(params);
         })
-        .then(function() {
+        .then(function(){
+
+          SUtils.sDebug(`Configuring policy for bucket ${_this.bucketName}...`);
+
           let policy = {
             Version: "2008-10-17",
             Id: "Policy1392681112290",
@@ -282,10 +230,13 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
           };
 
           return _this.S3.putBucketPolicyPromised(params);
+        })
+        .then(function(){
+          return _this._uploadDirectory(_this.clientPath)
         });
     }
 
-    _uploadDirectory(region, directoryPath) {
+    _uploadDirectory(directoryPath) {
       let _this         = this,
         readDirectory = _.partial(fs.readdir, directoryPath);
 
@@ -298,31 +249,24 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
           fs.stat(path, _.bind(function (err, stats) {
 
             return stats.isDirectory()
-              ? _this._uploadDirectory(region, path)
-              : _this._uploadFile(region, path);
+              ? _this._uploadDirectory(path)
+              : _this._uploadFile(path);
           }, _this));
         });
       }]);
 
     }
 
-    _uploadFile(region, filePath) {
+    _uploadFile(filePath) {
       let _this      = this,
-        fileKey    = filePath.replace(_this.clientPath, '').substr(1),
-        bucketName = `${_this.project.name}.client.${_this.evt.options.stage}.${region}`;
+        fileKey    = filePath.replace(_this.clientPath, '').substr(1);
 
-      let awsConfig  = {
-        region:          region,
-        accessKeyId:     _this.S.config.awsAdminKeyId,
-        secretAccessKey: _this.S.config.awsAdminSecretKey
-      };
-
-      let S3 = require('../utils/aws/S3')(awsConfig);
+      SUtils.sDebug(`Uploading file ${fileKey} to bucket ${_this.bucketName}...`);
 
       fs.readFile(filePath, function(err, fileBuffer) {
 
         let params = {
-          Bucket: bucketName,
+          Bucket: _this.bucketName,
           Key: fileKey,
           Body: fileBuffer,
           ContentType: mime.lookup(filePath)
@@ -330,7 +274,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
         // TODO: remove browser caching
 
-        return S3.putObjectPromised(params);
+        return _this.S3.putObjectPromised(params);
       });
 
     }

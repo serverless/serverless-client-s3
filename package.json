@@ -33,7 +33,9 @@
   },
   "homepage": "https://github.com/serverless/serverless-client-s3#readme",
   "dependencies": {
-    "s3-site": "^0.1.1",
+    "mime": "^1.2.11",
+    "async": "^1.5.2",
+    "lodash": "^4.2.1",
     "bluebird": "^3.0.6"
   }
 }
