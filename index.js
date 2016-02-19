@@ -54,6 +54,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         .then(function() {
 
           _this._spinner.stop(true);
+          SCli.log(`Finishing deployment...`);
 
           // display friendly message after all async operations (file uploads) are finished
           process.on('exit', function (){
@@ -114,7 +115,6 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
       _this.project  = _this.S.state.getProject();
       _this.meta     = _this.S.state.getMeta();
-      //_this.S3 = require('../utils/aws/S3')(awsConfig);
       _this.S3 = require(path.join(serverlessPath, '/utils/aws/S3'))(awsConfig);
       _this.bucketName = `${_this.project.name}.client.${_this.evt.options.stage}.${_this.evt.options.region}`;
       _this.clientPath = path.join(_this.S.config.projectPath, 'client', 'dist');
@@ -126,8 +126,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
       let _this = this;
 
-      // Status
-      SCli.log('Deploying client to stage "' + _this.evt.options.stage + '" in region "' + _this.evt.options.region + '"');
+      SCli.log('Deploying client to stage "' + _this.evt.options.stage + '" in region "' + _this.evt.options.region + '"...');
 
       _this._spinner = SCli.spinner();
       _this._spinner.start();
