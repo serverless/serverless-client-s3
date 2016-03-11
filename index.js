@@ -2,8 +2,7 @@
 
 module.exports = function(ServerlessPlugin, serverlessPath) {
   const path     = require('path'),
-    SError       = require(path.join(serverlessPath, 'ServerlessError')),
-    SUtils       = require(path.join(serverlessPath, 'utils/index')),
+    SError       = require(path.join(serverlessPath, 'Error')),
     SCli         = require(path.join(serverlessPath, 'utils/cli')),
     BbPromise    = require('bluebird'),
     async        = require('async'),
@@ -11,6 +10,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
     mime         = require('mime'),
     fs           = require('fs');
 
+  let SUtils;
   class ClientDeploy extends ServerlessPlugin {
     constructor(S) {
       super(S);
@@ -45,6 +45,8 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
       let _this     = this;
       _this.evt     = evt;
+
+      SUtils = _this.S.utils;
 
       // Flow
       return _this._prompt()
@@ -97,27 +99,20 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
       }
 
       // validate stage: make sure stage exists
-      if (!_this.S.state.meta.get().stages[_this.evt.options.stage] && _this.evt.options.stage != 'local') {
+      if (!_this.S.getProject().validateStageExists(_this.evt.options.stage)) {
         return BbPromise.reject(new SError('Stage ' + _this.evt.options.stage + ' does not exist in your project', SError.errorCodes.UNKNOWN));
       }
 
       // make sure region exists in stage
-      if (!_this.S.state.meta.get().stages[_this.evt.options.stage].regions[_this.evt.options.region]) {
+      if (!_this.S.getProject().validateRegionExists(_this.evt.options.stage, _this.evt.options.region)) {
         return BbPromise.reject(new SError('Region "' + _this.evt.options.region + '" does not exist in stage "' + _this.evt.options.stage + '"'));
       }
 
-
-      let awsConfig  = {
-        region:          _this.evt.options.region,
-        accessKeyId:     _this.S.config.awsAdminKeyId,
-        secretAccessKey: _this.S.config.awsAdminSecretKey
-      };
-
-      _this.project  = _this.S.state.getProject();
-      _this.meta     = _this.S.state.getMeta();
-      _this.S3 = require(path.join(serverlessPath, '/utils/aws/S3'))(awsConfig);
-      _this.bucketName = `${_this.project.name}.client.${_this.evt.options.stage}.${_this.evt.options.region}`;
-      _this.clientPath = path.join(_this.S.config.projectPath, 'client', 'dist');
+      _this.project    = _this.S.getProject();
+      _this.aws        = _this.S.getProvider('aws');
+      _this.projectBucketRegion = _this.S.getProject().getVariables().projectBucketRegion;
+      _this.bucketName = `${_this.project.getName()}.client.${_this.evt.options.stage}.${_this.evt.options.region}`;
+      _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
 
       return BbPromise.resolve();
     }
@@ -131,7 +126,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
       _this._spinner = SCli.spinner();
       _this._spinner.start();
 
-      return _this.S3.listBucketsPromised()
+      return _this.aws.request('S3', 'listBuckets', {}, _this.evt.options.stage, _this.projectBucketRegion)
         .bind(_this)
         .then(function(data) {
           data.Buckets.forEach(function(bucket) {
@@ -149,7 +144,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
           let params = {
             Bucket: _this.bucketName
           };
-          return _this.S3.listObjectsPromised(params);
+          return _this.aws.request('S3', 'listObjects', params, _this.evt.options.stage, _this.projectBucketRegion)
         })
         .then(function(data){
           if (!_this.bucketExists) return BbPromise.resolve();
@@ -167,8 +162,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
               Bucket: _this.bucketName,
               Delete: { Objects: Objects }
             };
-
-            return _this.S3.deleteObjectsPromised(params);
+            return _this.aws.request('S3', 'deleteObjects', params, _this.evt.options.stage, _this.projectBucketRegion)
           }})
         .then(function(){
           if (!_this.bucketExists) return BbPromise.resolve();
@@ -178,8 +172,8 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
           let params = {
             Bucket: _this.bucketName
           };
-
-          return _this.S3.deleteBucketPromised(params);})
+          return _this.aws.request('S3', 'deleteBucket', params, _this.evt.options.stage, _this.projectBucketRegion)
+        })
         .then(function(){
 
           SUtils.sDebug(`Creating bucket ${_this.bucketName}...`);
@@ -187,8 +181,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
           let params = {
             Bucket: _this.bucketName
           };
-
-          return _this.S3.createBucketPromised(params)
+          return _this.aws.request('S3', 'createBucket', params, _this.evt.options.stage, _this.projectBucketRegion)
         })
         .then(function(){
 
@@ -200,8 +193,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
               IndexDocument: { Suffix: 'index.html' }
             }
           };
-
-          return _this.S3.putBucketWebsitePromised(params);
+          return _this.aws.request('S3', 'putBucketWebsite', params, _this.evt.options.stage, _this.projectBucketRegion)
         })
         .then(function(){
 
@@ -227,8 +219,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
             Bucket: _this.bucketName,
             Policy: JSON.stringify(policy)
           };
-
-          return _this.S3.putBucketPolicyPromised(params);
+          return _this.aws.request('S3', 'putBucketPolicy', params, _this.evt.options.stage, _this.projectBucketRegion)
         })
         .then(function(){
           return _this._uploadDirectory(_this.clientPath)
@@ -272,8 +263,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         };
 
         // TODO: remove browser caching
-
-        return _this.S3.putObjectPromised(params);
+        return _this.aws.request('S3', 'putObject', params, _this.evt.options.stage, _this.projectBucketRegion)
       });
 
     }
