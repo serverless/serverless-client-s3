@@ -1,27 +1,24 @@
 'use strict';
 
-module.exports = function(ServerlessPlugin, serverlessPath) {
+module.exports = function(S) {
   const path     = require('path'),
-    SError       = require(path.join(serverlessPath, 'Error')),
-    SCli         = require(path.join(serverlessPath, 'utils/cli')),
+    SError       = require(S.getServerlessPath('Error')),
+    SCli         = require(S.getServerlessPath('utils/cli')),
     BbPromise    = require('bluebird'),
     async        = require('async'),
     _            = require('lodash'),
     mime         = require('mime'),
     fs           = require('fs');
 
-  let SUtils;
-  class ClientDeploy extends ServerlessPlugin {
-    constructor(S) {
-      super(S);
-    }
+  class ClientDeploy extends S.classes.Plugin {
 
-    static getName() {
-      return 'serverless.plugins.' + ClientDeploy.name;
+    constructor() {
+      super();
+      this.name = 'serverless-client-s3'; // Define your plugin's name
     }
 
     registerActions() {
-      this.S.addAction(this.clientDeploy.bind(this), {
+      S.addAction(this.clientDeploy.bind(this), {
         handler:       'clientDeploy',
         description:   `Deploy your Serverless clients to S3 Website Bucket.`,
         context:       'client',
@@ -45,8 +42,6 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
       let _this     = this;
       _this.evt     = evt;
-
-      SUtils = _this.S.utils;
 
       // Flow
       return _this._prompt()
@@ -94,23 +89,23 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
 
       let _this = this;
 
-      if (!SUtils.dirExistsSync(path.join(_this.S.config.projectPath, 'client', 'dist'))) {
+      if (!S.utils.dirExistsSync(path.join(S.config.projectPath, 'client', 'dist'))) {
         return BbPromise.reject(new SError('Could not find "client/dist" folder in your project root.'));
       }
 
       // validate stage: make sure stage exists
-      if (!_this.S.getProject().validateStageExists(_this.evt.options.stage)) {
+      if (!S.getProject().validateStageExists(_this.evt.options.stage)) {
         return BbPromise.reject(new SError('Stage ' + _this.evt.options.stage + ' does not exist in your project', SError.errorCodes.UNKNOWN));
       }
 
       // make sure region exists in stage
-      if (!_this.S.getProject().validateRegionExists(_this.evt.options.stage, _this.evt.options.region)) {
+      if (!S.getProject().validateRegionExists(_this.evt.options.stage, _this.evt.options.region)) {
         return BbPromise.reject(new SError('Region "' + _this.evt.options.region + '" does not exist in stage "' + _this.evt.options.stage + '"'));
       }
 
-      _this.project    = _this.S.getProject();
-      _this.aws        = _this.S.getProvider('aws');
-      _this.projectBucketRegion = _this.S.getProject().getVariables().projectBucketRegion;
+      _this.project    = S.getProject();
+      _this.aws        = S.getProvider('aws');
+      _this.projectBucketRegion = S.getProject().getVariables().projectBucketRegion;
       _this.bucketName = `${_this.project.getName()}.client.${_this.evt.options.stage}.${_this.evt.options.region}`;
       _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
 
@@ -132,14 +127,14 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
           data.Buckets.forEach(function(bucket) {
             if (bucket.Name === _this.bucketName) {
               _this.bucketExists = true;
-              SUtils.sDebug(`Bucket ${_this.bucketName} already exists`);
+              S.utils.sDebug(`Bucket ${_this.bucketName} already exists`);
             }
           });
         })
         .then(function(){
           if (!_this.bucketExists) return BbPromise.resolve();
 
-          SUtils.sDebug(`Listing objects in bucket ${_this.bucketName}...`);
+          S.utils.sDebug(`Listing objects in bucket ${_this.bucketName}...`);
 
           let params = {
             Bucket: _this.bucketName
@@ -149,7 +144,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         .then(function(data){
           if (!_this.bucketExists) return BbPromise.resolve();
 
-          SUtils.sDebug(`Deleting all objects from bucket ${_this.bucketName}...`);
+          S.utils.sDebug(`Deleting all objects from bucket ${_this.bucketName}...`);
 
           if (!data.Contents[0]) {
             return BbPromise.resolve();
@@ -167,7 +162,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         .then(function(){
           if (!_this.bucketExists) return BbPromise.resolve();
 
-          SUtils.sDebug(`Deleting bucket ${_this.bucketName}...`);
+          S.utils.sDebug(`Deleting bucket ${_this.bucketName}...`);
 
           let params = {
             Bucket: _this.bucketName
@@ -176,7 +171,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         })
         .then(function(){
 
-          SUtils.sDebug(`Creating bucket ${_this.bucketName}...`);
+          S.utils.sDebug(`Creating bucket ${_this.bucketName}...`);
 
           let params = {
             Bucket: _this.bucketName
@@ -185,7 +180,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         })
         .then(function(){
 
-          SUtils.sDebug(`Configuring website bucket ${_this.bucketName}...`);
+          S.utils.sDebug(`Configuring website bucket ${_this.bucketName}...`);
 
           let params = {
             Bucket: _this.bucketName,
@@ -197,7 +192,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
         })
         .then(function(){
 
-          SUtils.sDebug(`Configuring policy for bucket ${_this.bucketName}...`);
+          S.utils.sDebug(`Configuring policy for bucket ${_this.bucketName}...`);
 
           let policy = {
             Version: "2008-10-17",
@@ -251,7 +246,7 @@ module.exports = function(ServerlessPlugin, serverlessPath) {
       let _this      = this,
         fileKey    = filePath.replace(_this.clientPath, '').substr(1);
 
-      SUtils.sDebug(`Uploading file ${fileKey} to bucket ${_this.bucketName}...`);
+      S.utils.sDebug(`Uploading file ${fileKey} to bucket ${_this.bucketName}...`);
 
       fs.readFile(filePath, function(err, fileBuffer) {
 
