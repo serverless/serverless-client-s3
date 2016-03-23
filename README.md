@@ -1,5 +1,7 @@
 serverless-client-s3
 ====================
+[![serverless](http://public.serverless.com/badges/v1.svg)](http://www.serverless.com)
+
 A Serverless plugin that deploys a web client for your Serverless project to an S3 bucket, and make it publicaly available in seconds.
 
 **First**, install:
