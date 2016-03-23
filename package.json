@@ -1,13 +1,13 @@
 {
   "name": "serverless-client-s3",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "engines": {
     "node": ">=4.0"
   },
   "description": "Deploy your serverless static site to S3 Website Bucket.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": ""
   },
   "repository": {
     "type": "git",
@@ -26,7 +26,7 @@
     "frontend",
     "serverless.com"
   ],
-  "author": "Eslam A. Hefnawy",
+  "author": "Eslam A. Hefnawy <serverless.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/serverless/serverless-client-s3/issues"
