@@ -14,7 +14,7 @@ module.exports = function(S) {
 
     constructor() {
       super();
-      this.name = 'serverless-client-s3'; // Define your plugin's name
+      this.name = 'serverless-client-s3';
     }
 
     registerActions() {
@@ -27,11 +27,11 @@ module.exports = function(S) {
           {
             option:      'stage',
             shortcut:    's',
-            description: 'Optional - JS file to run as custom initialization code'
+            description: 'stage to populate any variables'
           }, {
             option:      'region',
             shortcut:    'r',
-            description: 'Optional - add URL prefix to each lambda'
+            description: 'region to populate any variables'
           }
         ]
       });
@@ -75,7 +75,7 @@ module.exports = function(S) {
           BbPromise.resolve();
         })
         .then(function(){
-          return _this.cliPromptSelectRegion('Client Deployer - Choose Region: ', true, true, _this.evt.options.region, _this.evt.options.stage)
+          return _this.cliPromptSelectRegion('Client Deployer - Choose Region: ', false, true, _this.evt.options.region, _this.evt.options.stage)
             .then(region => {
               _this.evt.options.region = region;
               BbPromise.resolve();
@@ -105,8 +105,14 @@ module.exports = function(S) {
 
       _this.project    = S.getProject();
       _this.aws        = S.getProvider('aws');
-      _this.projectBucketRegion = S.getProject().getVariables().projectBucketRegion;
-      _this.bucketName = `${_this.project.getName()}.client.${_this.evt.options.stage}.${_this.evt.options.region}`;
+
+      let populatedProject = _this.project.toObjectPopulated({stage: _this.evt.options.stage, region: _this.evt.options.region});
+
+      if (!populatedProject.custom.client || !populatedProject.custom.client.bucketName) {
+        return BbPromise.reject(new SError('Please specify a bucket name for the client in s-project.json'));
+      }
+
+      _this.bucketName = populatedProject.custom.client.bucketName;
       _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
 
       return BbPromise.resolve();
@@ -121,7 +127,7 @@ module.exports = function(S) {
       _this._spinner = SCli.spinner();
       _this._spinner.start();
 
-      return _this.aws.request('S3', 'listBuckets', {}, _this.evt.options.stage, _this.projectBucketRegion)
+      return _this.aws.request('S3', 'listBuckets', {}, _this.evt.options.stage, _this.evt.options.region)
         .bind(_this)
         .then(function(data) {
           data.Buckets.forEach(function(bucket) {
@@ -139,7 +145,7 @@ module.exports = function(S) {
           let params = {
             Bucket: _this.bucketName
           };
-          return _this.aws.request('S3', 'listObjects', params, _this.evt.options.stage, _this.projectBucketRegion)
+          return _this.aws.request('S3', 'listObjects', params, _this.evt.options.stage, _this.evt.options.region)
         })
         .then(function(data){
           if (!_this.bucketExists) return BbPromise.resolve();
@@ -157,7 +163,7 @@ module.exports = function(S) {
               Bucket: _this.bucketName,
               Delete: { Objects: Objects }
             };
-            return _this.aws.request('S3', 'deleteObjects', params, _this.evt.options.stage, _this.projectBucketRegion)
+            return _this.aws.request('S3', 'deleteObjects', params, _this.evt.options.stage, _this.evt.options.region)
           }})
         .then(function(){
           if (!_this.bucketExists) return BbPromise.resolve();
@@ -167,7 +173,7 @@ module.exports = function(S) {
           let params = {
             Bucket: _this.bucketName
           };
-          return _this.aws.request('S3', 'deleteBucket', params, _this.evt.options.stage, _this.projectBucketRegion)
+          return _this.aws.request('S3', 'deleteBucket', params, _this.evt.options.stage, _this.evt.options.region)
         })
         .then(function(){
 
@@ -176,7 +182,7 @@ module.exports = function(S) {
           let params = {
             Bucket: _this.bucketName
           };
-          return _this.aws.request('S3', 'createBucket', params, _this.evt.options.stage, _this.projectBucketRegion)
+          return _this.aws.request('S3', 'createBucket', params, _this.evt.options.stage, _this.evt.options.region)
         })
         .then(function(){
 
@@ -188,7 +194,7 @@ module.exports = function(S) {
               IndexDocument: { Suffix: 'index.html' }
             }
           };
-          return _this.aws.request('S3', 'putBucketWebsite', params, _this.evt.options.stage, _this.projectBucketRegion)
+          return _this.aws.request('S3', 'putBucketWebsite', params, _this.evt.options.stage, _this.evt.options.region)
         })
         .then(function(){
 
@@ -214,7 +220,7 @@ module.exports = function(S) {
             Bucket: _this.bucketName,
             Policy: JSON.stringify(policy)
           };
-          return _this.aws.request('S3', 'putBucketPolicy', params, _this.evt.options.stage, _this.projectBucketRegion)
+          return _this.aws.request('S3', 'putBucketPolicy', params, _this.evt.options.stage, _this.evt.options.region)
         })
         .then(function(){
           return _this._uploadDirectory(_this.clientPath)
@@ -258,7 +264,7 @@ module.exports = function(S) {
         };
 
         // TODO: remove browser caching
-        return _this.aws.request('S3', 'putObject', params, _this.evt.options.stage, _this.projectBucketRegion)
+        return _this.aws.request('S3', 'putObject', params, _this.evt.options.stage, _this.evt.options.region)
       });
 
     }
