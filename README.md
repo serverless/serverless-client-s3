@@ -1,6 +1,12 @@
 serverless-client-s3
 ====================
 [![serverless](http://public.serverless.com/badges/v3.svg)](http://www.serverless.com)
+[![gitter](https://img.shields.io/gitter/room/serverless/serverless.svg)](https://gitter.im/serverless/serverless)
+[![version](https://img.shields.io/npm/v/serverless-client-s3.svg)](https://www.npmjs.com/package/serverless-client-s3)
+[![downloads](https://img.shields.io/npm/dm/serverless-client-s3.svg)](https://www.npmjs.com/package/serverless-client-s3)
+[![dependencies](https://img.shields.io/david/serverless/serverless-client-s3.svg)](https://www.npmjs.com/package/serverless-client-s3)
+[![license](https://img.shields.io/npm/l/serverless-client-s3.svg)](https://www.npmjs.com/package/serverless-client-s3)
+
 
 A Serverless plugin that deploys a web client for your Serverless project to an S3 bucket, and make it publicaly available in seconds.
 
