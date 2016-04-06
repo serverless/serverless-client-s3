@@ -191,7 +191,8 @@ module.exports = function(S) {
           let params = {
             Bucket: _this.bucketName,
             WebsiteConfiguration: {
-              IndexDocument: { Suffix: 'index.html' }
+              IndexDocument: { Suffix: 'index.html' },
+              ErrorDocument: { Key: 'error.html' }
             }
           };
           return _this.aws.request('S3', 'putBucketWebsite', params, _this.evt.options.stage, _this.evt.options.region)
