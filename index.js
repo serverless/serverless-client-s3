@@ -166,17 +166,7 @@ module.exports = function(S) {
             return _this.aws.request('S3', 'deleteObjects', params, _this.evt.options.stage, _this.evt.options.region)
           }})
         .then(function(){
-          if (!_this.bucketExists) return BbPromise.resolve();
-
-          S.utils.sDebug(`Deleting bucket ${_this.bucketName}...`);
-
-          let params = {
-            Bucket: _this.bucketName
-          };
-          return _this.aws.request('S3', 'deleteBucket', params, _this.evt.options.stage, _this.evt.options.region)
-        })
-        .then(function(){
-
+          if (_this.bucketExists) return BbPromise.resolve();
           S.utils.sDebug(`Creating bucket ${_this.bucketName}...`);
 
           let params = {
