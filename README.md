@@ -39,7 +39,9 @@ Or just copy/run the following commands in the root directory of your Serverless
 ```
 mkdir -p client/dist
 touch client/dist/index.html
+touch client/dist/error.html
 echo "Go Serverless" >> client/dist/index.html
+echo "error page" >> client/dist/error.html
 ```
 
 **Fourth**, run the plugin, and visit your new website!
