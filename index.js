@@ -241,7 +241,7 @@ module.exports = function(S) {
 
     _uploadFile(filePath) {
       let _this      = this,
-        fileKey    = filePath.replace(_this.clientPath, '').substr(1);
+          fileKey    = filePath.replace(_this.clientPath, '').substr(1).replace('\\', '/');
 
       S.utils.sDebug(`Uploading file ${fileKey} to bucket ${_this.bucketName}...`);
 
