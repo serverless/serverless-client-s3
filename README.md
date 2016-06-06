@@ -22,9 +22,17 @@ npm install --save serverless-client-s3
   "serverless-client-s3"
 ],
 "custom" : {
-    "client": {
-        "bucketName": "bucket.name.for.the.client"
-    }
+   "client": {
+       "bucketName": "bucket.name.for.the.client"
+   },
+   "Tagging": {
+       "TagSet": [
+         {
+           "Key": "Region", "Value": "${region}"
+         },
+         etc..
+       ]
+   }
 }
 ```
 
