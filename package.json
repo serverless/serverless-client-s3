@@ -1,6 +1,6 @@
 {
   "name": "serverless-client-s3",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "engines": {
     "node": ">=4.0"
   },

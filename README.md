@@ -24,21 +24,12 @@ npm install --save serverless-client-s3
 "custom" : {
    "client": {
        "bucketName": "bucket.name.for.the.client"
-   },
-   "Tagging": {
-       "TagSet": [
-         {
-           "Key": "Region", "Value": "${region}"
-         },
-         etc..
-       ]
    }
 }
 ```
 
 * **Warning:** The plugin will overwrite any data you have in the bucket name you set above if it already exists.
 * **Pro Tip:** To add staging and region functionality to your client, use Serverless Variables in the bucket name: `"bucket.name.for.the.client.${stage}.${region}"`
-
 
 **Third**, Create a `client/dist` folder in the root directory of your Serverless project. This is where your distribution-ready website should live. It is recommended to have a `client/src` where you'll be developing your website, and a build script that outputs to `client/dist`. The plugin simply expects and uploads the entire `client/dist` folder to S3, configure the bucket to host the website, and make it publicly available.
 
@@ -59,3 +50,43 @@ sls client deploy
 ```
 
 **Fifth**, Have fun!
+
+**Sixth**, Fill custom Tagging and Policy options. It will work without these, but note, by default there is no tagging and policy is hard-coded:
+
+```js
+"plugins": [
+  "serverless-client-s3"
+],
+"custom" : {
+   "client": {
+       "bucketName": "bucket.name.for.the.client"
+   },
+   "Tagging": {
+       "TagSet": [
+         {
+           "Key": "Region", "Value": "${region}"
+         }
+       ]
+   },
+   "Policy": {
+       "Version": "2008-10-17",
+       "Id": "Policy1392681112290",
+       "Statement": [
+         {
+           "Sid": "Stmt1392681101677",
+           "Effect": "Allow",
+           "Principal": {
+             "AWS": "*"
+           },
+           "Action": "s3:GetObject",
+           "Resource": "arn:aws:s3:::${stage}.zzzzzzz.com",
+           "Condition": {
+               "IpAddress": {
+                   "aws:SourceIp": "xx.yy.zzz.uuu"
+               }
+           }
+         }
+       ]
+   }
+}
+```
