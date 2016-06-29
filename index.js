@@ -189,6 +189,7 @@ module.exports = function(S) {
           return _this.aws.request('S3', 'putBucketWebsite', params, _this.evt.options.stage, _this.evt.options.region)
         })
         .then(function(){
+          if (!_this.Tagging) return BbPromise.resolve();
 
           S.utils.sDebug(`Configuring TAGs for bucket ${_this.bucketName}...`);
 
