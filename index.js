@@ -115,6 +115,7 @@ module.exports = function(S) {
       _this.bucketName = populatedProject.custom.client.bucketName;
       _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
       _this.Tagging = populatedProject.custom.client.Tagging;
+      _this.Policy = populatedProject.custom.client.Policy;
 
       return BbPromise.resolve();
     }
@@ -218,6 +219,9 @@ module.exports = function(S) {
               }
             ]
           };
+          if (_this.Policy) {
+            policy = _this.Policy;
+          }
 
           let params = {
             Bucket: _this.bucketName,
