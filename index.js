@@ -112,10 +112,6 @@ module.exports = function(S) {
         return BbPromise.reject(new SError('Please specify a bucket name for the client in s-project.json'));
       }
 
-      if (!populatedProject.custom.client.Tagging || !populatedProject.custom.client.Tagging.TagSet) {
-        return BbPromise.reject(new SError('Please specify at least one TAG in Tagging.TagSet for the client in s-project.json'));
-      }
-
       _this.bucketName = populatedProject.custom.client.bucketName;
       _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
       _this.Tagging = populatedProject.custom.client.Tagging;
