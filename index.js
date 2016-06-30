@@ -261,6 +261,8 @@ module.exports = function(S) {
 
       S.utils.sDebug(`Uploading file ${fileKey} to bucket ${_this.bucketName}...`);
 
+      console.log(filePath);
+
       fs.readFile(filePath, function(err, fileBuffer) {
 
         let params = {
