@@ -116,6 +116,8 @@ module.exports = function(S) {
       _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
       _this.Tagging = populatedProject.custom.client.Tagging;
       _this.Policy = populatedProject.custom.client.Policy;
+      _this.RedirectionIndex = populatedProject.custom.client.Redirection.Index;
+      _this.RedirectionPath = populatedProject.custom.client.Redirection.Path;
 
       return BbPromise.resolve();
     }
@@ -261,8 +263,6 @@ module.exports = function(S) {
 
       S.utils.sDebug(`Uploading file ${fileKey} to bucket ${_this.bucketName}...`);
 
-      console.log(filePath);
-
       fs.readFile(filePath, function(err, fileBuffer) {
 
         let params = {
@@ -272,6 +272,12 @@ module.exports = function(S) {
           ContentType: mime.lookup(filePath)
         };
 
+        if (_this.Redirection && _this.RedirectionIndex && _this.RedirectionPath) {
+          let srcToken = '/dist/' + _this.RedirectionIndex;
+          if (filePath.indexOf(srcToken) > -1) {
+            params.WebsiteRedirectLocation = _this.RedirectionPath;
+          }
+        }
         // TODO: remove browser caching
         return _this.aws.request('S3', 'putObject', params, _this.evt.options.stage, _this.evt.options.region)
       });
