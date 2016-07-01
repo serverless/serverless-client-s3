@@ -51,7 +51,7 @@ sls client deploy
 
 **Fifth**, Have fun!
 
-**Sixth**, Fill custom Tagging and Policy options. It will work without these, but note, by default there is no tagging and policy is hard-coded:
+**Sixth**, Have more fun with custom redirection, tagging and policy options. These are optional.
 
 ```js
 "plugins": [
@@ -60,6 +60,10 @@ sls client deploy
 "custom" : {
    "client": {
        "bucketName": "bucket.name.for.the.client"
+   },
+   "Redirection" : {
+       "Index": "index.html",
+       "Path": "/MyAppPath"
    },
    "Tagging": {
        "TagSet": [
