@@ -275,7 +275,8 @@ module.exports = function(S) {
         if (_this.Redirection && _this.RedirectionIndex && _this.RedirectionPath) {
           let srcToken = '/dist/' + _this.RedirectionIndex;
           if (filePath.indexOf(srcToken) > -1) {
-            params.WebsiteRedirectLocation = _this.RedirectionPath;
+            params.WebsiteRedirectLocation = _this.RedirectionPath + '/' + _this.RedirectionIndex;
+            console.log(params.WebsiteRedirectLocation);
           }
         }
         // TODO: remove browser caching
