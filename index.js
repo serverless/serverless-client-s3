@@ -116,8 +116,10 @@ module.exports = function(S) {
       _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
       _this.Tagging = populatedProject.custom.client.Tagging;
       _this.Policy = populatedProject.custom.client.Policy;
-      _this.RedirectionIndex = populatedProject.custom.client.Redirection.Index;
-      _this.RedirectionPath = populatedProject.custom.client.Redirection.Path;
+      if (populatedProject.custom.client.Redirection) {
+        _this.RedirectionIndex = populatedProject.custom.client.Redirection.Index;
+        _this.RedirectionPath = populatedProject.custom.client.Redirection.Path;
+      }
 
       return BbPromise.resolve();
     }
