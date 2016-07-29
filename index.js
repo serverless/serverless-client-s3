@@ -114,6 +114,7 @@ module.exports = function(S) {
 
       _this.bucketName = populatedProject.custom.client.bucketName;
       _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
+      _this.errorPage = populatedProject.custom.client.errorPage || 'error.html';
 
       return BbPromise.resolve();
     }
@@ -182,7 +183,7 @@ module.exports = function(S) {
             Bucket: _this.bucketName,
             WebsiteConfiguration: {
               IndexDocument: { Suffix: 'index.html' },
-              ErrorDocument: { Key: 'error.html' }
+              ErrorDocument: { Key: _this.errorPage }
             }
           };
           return _this.aws.request('S3', 'putBucketWebsite', params, _this.evt.options.stage, _this.evt.options.region)
