@@ -271,7 +271,7 @@ module.exports = function(S) {
     }
     
     _isHash(name) {
-      return (/^[a-f0-9]{32}$/).test(name) && (/[a-f].*[a-f]/).test(name) && (/[0-9].*[0-9]/).test(name);
+      return (/^[a-f0-9]{20,32}$/).test(name) && (/[a-f].*[a-f]/).test(name) && (/[0-9].*[0-9]/).test(name);
     }
 
   }
