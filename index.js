@@ -1,5 +1,12 @@
 'use strict';
 
+const path     = require('path');
+const BbPromise    = require('bluebird');
+const async        = require('async');
+const _            = require('lodash');
+const mime         = require('mime');
+const fs           = require('fs');
+
 class Client {
   constructor(serverless, options){
     this.serverless = serverless;
@@ -26,13 +33,49 @@ class Client {
 
     this.hooks = {
       'client:client': () => {
-        console.log('lol do some shit');
+        this.serverless.cli.log(this.commands.client.usage);
       },
 
-      'client:deploy:deploy': () => {
-        console.log('deploying client lol');
-      },      
+      'client:deploy:deploy': this._prompt(),
     };
+  }
+
+  _prompt() {
+    this._validateAndPrepare();
+  }
+
+  _validateAndPrepare() {
+    const Utils = new this.serverless.classes.Utils(this.serverless);
+    const Error = this.serverless.classes.Error;
+
+
+    if (!Utils.dirExistsSync(path.join(this.serverless.config.servicePath, 'client', 'dist'))) {
+      return BbPromise.reject(new Error('Could not find "client/dist" folder in your project root.'));
+    }
+
+    // validate stage: make sure stage exists
+    if (!S.getProject().validateStageExists(_this.evt.options.stage)) {
+      return BbPromise.reject(new SError('Stage ' + _this.evt.options.stage + ' does not exist in your project', SError.errorCodes.UNKNOWN));
+    }
+
+    // make sure region exists in stage
+    if (!S.getProject().validateRegionExists(_this.evt.options.stage, _this.evt.options.region)) {
+      return BbPromise.reject(new SError('Region "' + _this.evt.options.region + '" does not exist in stage "' + _this.evt.options.stage + '"'));
+    }
+
+    _this.project    = S.getProject();
+    _this.aws        = S.getProvider('aws');
+
+    let populatedProject = _this.project.toObjectPopulated({stage: _this.evt.options.stage, region: _this.evt.options.region});
+
+    if (!populatedProject.custom.client || !populatedProject.custom.client.bucketName) {
+      return BbPromise.reject(new SError('Please specify a bucket name for the client in s-project.json'));
+    }
+
+    _this.bucketName = populatedProject.custom.client.bucketName;
+    _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
+
+    return BbPromise.resolve();
   }
 
 }
