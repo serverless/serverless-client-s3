@@ -8,6 +8,10 @@ class Client {
     this.commands = {
       client: {
         usage: 'Generate and deploy clients',
+        lifecycleEvents:[
+          'client',
+          'deploy'
+        ],
         commands: {
           deploy: {
             usage: 'Deploy serverless client code',
@@ -21,19 +25,19 @@ class Client {
 
 
     this.hooks = {
-      'client': () => {
+      'client:client': () => {
         console.log('lol do some shit');
       },
-      
-      'client:deploy': () => {
-        console.log('deploying client');
-      },
+
+      'client:deploy:deploy': () => {
+        console.log('deploying client lol');
+      },      
     };
   }
 
 }
 
-module.exports = Cool;
+module.exports = Client;
 
 const cool =  function(S) {
   const path     = require('path'),
