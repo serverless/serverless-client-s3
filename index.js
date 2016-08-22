@@ -1,6 +1,41 @@
 'use strict';
 
-module.exports = function(S) {
+class Client {
+  constructor(serverless, options){
+    this.serverless = serverless;
+    this.options = options;
+    
+    this.commands = {
+      client: {
+        usage: 'Generate and deploy clients',
+        commands: {
+          deploy: {
+            usage: 'Deploy serverless client code',
+            lifecycleEvents:[
+              'deploy'
+            ]
+          }
+        }
+      }
+    };
+
+
+    this.hooks = {
+      'client': () => {
+        console.log('lol do some shit');
+      },
+      
+      'client:deploy': () => {
+        console.log('deploying client');
+      },
+    };
+  }
+
+}
+
+module.exports = Cool;
+
+const cool =  function(S) {
   const path     = require('path'),
     SError       = require(S.getServerlessPath('Error')),
     SCli         = require(S.getServerlessPath('utils/cli')),
