@@ -38,13 +38,11 @@ class Client {
         this.serverless.cli.log(this.commands.client.usage);
       },
 
-      'client:deploy:deploy': this._prompt.bind(this),
+      'client:deploy:deploy': () => {
+        this._validateAndPrepare()
+          .then(this._processDeployment.bind(this));     
+      }
     };
-  }
-
-  _prompt() {
-    this._validateAndPrepare()
-      .then(this._processDeployment.bind(this));
   }
 
   _validateAndPrepare() {
@@ -59,8 +57,10 @@ class Client {
     const stage = this.serverless.service.getStage(this.options.stage);
     const region = this.serverless.service.getRegionInStage(this.options.stage, this.options.region);
     
-    if (!this.serverless.service.custom.client || !this.serverless.service.custom.client.bucketName) {
-      return BbPromise.reject(new Error('Please specify a bucket name for the client in s-project.json'));
+    if (!this.serverless.service.custom ||
+        !this.serverless.service.custom.client ||
+        !this.serverless.service.custom.client.bucketName) {
+      return BbPromise.reject(new Error('Please specify a bucket name for the client in serverless.yml.'));
     }
 
     this.bucketName = this.serverless.service.custom.client.bucketName;
@@ -111,7 +111,7 @@ class Client {
           Delete: { Objects: Objects }
         };
         
-        return _this.SDK.request('S3', 'deleteObjects', params, _this.options.stage, _this.options.region)
+        return this.SDK.request('S3', 'deleteObjects', params, this.options.stage, this.options.region);
       }
     }
 
