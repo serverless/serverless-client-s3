@@ -69,18 +69,10 @@ module.exports = function(S) {
 
       let _this = this;
 
-      return _this.cliPromptSelectStage('Client Deployer - Choose Stage: ', _this.evt.options.stage, true)
-        .then(stage => {
-          _this.evt.options.stage = stage;
-          BbPromise.resolve();
-        })
-        .then(function(){
-          return _this.cliPromptSelectRegion('Client Deployer - Choose Region: ', false, true, _this.evt.options.region, _this.evt.options.stage)
-            .then(region => {
-              _this.evt.options.region = region;
-              BbPromise.resolve();
-            });
-        });
+      return this.cliPromptSelectStage('Client Deployer - Choose stage: ', this.evt.options.stage, false)
+          .then(stage => this.evt.options.stage = stage)
+          .then(() => this.cliPromptSelectRegion('Choose a Region in this Stage: ', false, true, _this.evt.options.region, _this.evt.options.stage))
+          .then(region => this.evt.options.region = region);
 
     }
 
