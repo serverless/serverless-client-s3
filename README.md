@@ -23,7 +23,8 @@ npm install --save serverless-client-s3
 ],
 "custom" : {
     "client": {
-        "bucketName": "bucket.name.for.the.client"
+        "bucketName": "bucket.name.for.the.client",
+        "distPath": "client/dist" # default
     }
 }
 ```
@@ -32,7 +33,7 @@ npm install --save serverless-client-s3
 * **Pro Tip:** To add staging and region functionality to your client, use Serverless Variables in the bucket name: `"bucket.name.for.the.client.${stage}.${region}"`
 
 
-**Third**, Create a `client/dist` folder in the root directory of your Serverless project. This is where your distribution-ready website should live. It is recommended to have a `client/src` where you'll be developing your website, and a build script that outputs to `client/dist`. The plugin simply expects and uploads the entire `client/dist` folder to S3, configure the bucket to host the website, and make it publicly available.
+**Third**, Create a folder in the root directory of your Serverless project to store your S3 Website resources (`client/dist` is the default location). This is where your distribution-ready website should live. It is recommended to have a `client/src` where you'll be developing your website, and a build script that outputs to `client/dist`. The plugin simply expects and uploads the entire `client/dist` folder to S3, configure the bucket to host the website, and make it publicly available.
 
 Or just copy/run the following commands in the root directory of your Serverless project to get a quick sample website for deployment:
 

@@ -81,10 +81,6 @@ module.exports = function(S) {
 
       let _this = this;
 
-      if (!S.utils.dirExistsSync(path.join(S.config.projectPath, 'client', 'dist'))) {
-        return BbPromise.reject(new SError('Could not find "client/dist" folder in your project root.'));
-      }
-
       // validate stage: make sure stage exists
       if (!S.getProject().validateStageExists(_this.evt.options.stage)) {
         return BbPromise.reject(new SError('Stage ' + _this.evt.options.stage + ' does not exist in your project', SError.errorCodes.UNKNOWN));
@@ -104,8 +100,14 @@ module.exports = function(S) {
         return BbPromise.reject(new SError('Please specify a bucket name for the client in s-project.json'));
       }
 
+      _this.distPath = populatedProject.custom.client.distPath || "client/dist";
+
+      if (!S.utils.dirExistsSync(path.join(S.config.projectPath, _this.distPath))) {
+        return BbPromise.reject(new SError('Could not find "' + _this.distPath + '" folder in your project root.'));
+      }
+
       _this.bucketName = populatedProject.custom.client.bucketName;
-      _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
+      _this.clientPath = path.join(_this.project.getRootPath(), _this.distPath);
 
       return BbPromise.resolve();
     }
