@@ -104,7 +104,8 @@ module.exports = function(S) {
         return BbPromise.reject(new SError('Please specify a bucket name for the client in s-project.json'));
       }
 
-      _this.bucketName = populatedProject.custom.client.bucketName;
+      var removalRegex = new RegExp(populatedProject.custom.client.removeBucketRegex,"g");
+      _this.bucketName = populatedProject.custom.client.bucketName.replace(removalRegex,'');
       _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
 
       return BbPromise.resolve();
