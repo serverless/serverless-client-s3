@@ -106,6 +106,12 @@ module.exports = function(S) {
 
       _this.bucketName = populatedProject.custom.client.bucketName;
       _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
+      _this.Tagging = populatedProject.custom.client.Tagging;
+      _this.Policy = populatedProject.custom.client.Policy;
+      if (populatedProject.custom.client.Redirection) {
+        _this.RedirectionIndex = populatedProject.custom.client.Redirection.Index;
+        _this.RedirectionPath = populatedProject.custom.client.Redirection.Path;
+      }
 
       return BbPromise.resolve();
     }
@@ -180,6 +186,17 @@ module.exports = function(S) {
           return _this.aws.request('S3', 'putBucketWebsite', params, _this.evt.options.stage, _this.evt.options.region)
         })
         .then(function(){
+          if (!_this.Tagging) return BbPromise.resolve();
+
+          S.utils.sDebug(`Configuring TAGs for bucket ${_this.bucketName}...`);
+
+          let params = {
+            Bucket: _this.bucketName,
+            Tagging: _this.Tagging
+          };
+          return _this.aws.request('S3', 'putBucketTagging', params, _this.evt.options.stage, _this.evt.options.region)
+        })
+        .then(function(){
 
           S.utils.sDebug(`Configuring policy for bucket ${_this.bucketName}...`);
 
@@ -198,6 +215,9 @@ module.exports = function(S) {
               }
             ]
           };
+          if (_this.Policy) {
+            policy = _this.Policy;
+          }
 
           let params = {
             Bucket: _this.bucketName,
@@ -245,7 +265,13 @@ module.exports = function(S) {
           Body: fileBuffer,
           ContentType: mime.lookup(filePath)
         };
-
+        
+        if (_this.RedirectionIndex && _this.RedirectionPath) {
+          let srcToken = '/dist/' + _this.RedirectionIndex;
+          if (filePath.indexOf(srcToken) > -1) {
+            params.WebsiteRedirectLocation = _this.RedirectionPath;
+          }
+        }
         // TODO: remove browser caching
         return _this.aws.request('S3', 'putObject', params, _this.evt.options.stage, _this.evt.options.region)
       });
