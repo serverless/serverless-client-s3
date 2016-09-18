@@ -11,7 +11,6 @@ const AWS = require('serverless/lib/plugins/aws');
 class Client {
   constructor(serverless, options){
     this.serverless = serverless;
-    this.options = options;
     this.SDK = new AWS(this.serverless);
     
     this.commands = {
@@ -54,9 +53,6 @@ class Client {
       return BbPromise.reject(new Error('Could not find "client/dist" folder in your project root.'));
     }
 
-    const stage = this.serverless.service.getStage(this.options.stage);
-    const region = this.serverless.service.getRegionInStage(this.options.stage, this.options.region);
-    
     if (!this.serverless.service.custom ||
         !this.serverless.service.custom.client ||
         !this.serverless.service.custom.client.bucketName) {
@@ -71,7 +67,7 @@ class Client {
 
  
   _processDeployment() {
-    this.serverless.cli.log('Deploying client to stage "' + this.options.stage + '" in region "' + this.options.region + '"...');
+    this.serverless.cli.log('Deploying client to stage "' + this.serverless.service.provider.stage + '" in region "' + this.serverless.service.provider.region + '"...');
 
 
     function listBuckets(data) {
@@ -91,7 +87,7 @@ class Client {
       let params = {
         Bucket: this.bucketName
       };
-      return this.SDK.request('S3', 'listObjects', params, this.options.stage, this.options.region);
+      return this.SDK.request('S3', 'listObjects', params, this.serverless.service.provider.stage, this.serverless.service.provider.region);
     }
 
     function deleteObjectsFromBucket(data) {
@@ -111,7 +107,7 @@ class Client {
           Delete: { Objects: Objects }
         };
         
-        return this.SDK.request('S3', 'deleteObjects', params, this.options.stage, this.options.region);
+        return this.SDK.request('S3', 'deleteObjects', params, this.serverless.service.provider.stage, this.serverless.service.provider.region);
       }
     }
 
@@ -123,7 +119,7 @@ class Client {
         Bucket: this.bucketName
       };
       
-      return this.SDK.request('S3', 'createBucket', params, this.options.stage, this.options.region)
+      return this.SDK.request('S3', 'createBucket', params, this.serverless.service.provider.stage, this.serverless.service.provider.region)
     }
 
     function configureBucket() {
@@ -137,7 +133,7 @@ class Client {
         }
       };
       
-      return this.SDK.request('S3', 'putBucketWebsite', params, this.options.stage, this.options.region)
+      return this.SDK.request('S3', 'putBucketWebsite', params, this.serverless.service.provider.stage, this.serverless.service.provider.region)
     }
 
     function configurePolicyForBucket(){
@@ -164,10 +160,10 @@ class Client {
         Policy: JSON.stringify(policy)
       };
       
-      return this.SDK.request('S3', 'putBucketPolicy', params, this.options.stage, this.options.region);
+      return this.SDK.request('S3', 'putBucketPolicy', params, this.serverless.service.provider.stage, this.serverless.service.provider.region);
     }
  
-    return this.SDK.request('S3', 'listBuckets', {}, this.options.stage, this.options.region)
+    return this.SDK.request('S3', 'listBuckets', {}, this.serverless.service.provider.stage, this.serverless.service.provider.region)
       .bind(this)
       .then(listBuckets)
       .then(listObjectsInBucket)
@@ -199,6 +195,28 @@ class Client {
       });
     }]);
   }
+
+  _uploadFile(filePath) {
+    let _this      = this,
+        fileKey    = filePath.replace(_this.clientPath, '').substr(1).replace('\\', '/');
+
+    this.serverless.cli.log(`Uploading file ${fileKey} to bucket ${_this.bucketName}...`);
+
+    fs.readFile(filePath, function(err, fileBuffer) {
+
+      let params = {
+        Bucket: _this.bucketName,
+        Key: fileKey,
+        Body: fileBuffer,
+        ContentType: mime.lookup(filePath)
+      };
+
+      // TODO: remove browser caching
+      return _this.SDK.request('S3', 'putObject', params, _this.serverless.service.provider.stage, _this.serverless.service.provider.region);
+    });
+
+  }  
+
 }
 
 module.exports = Client;
