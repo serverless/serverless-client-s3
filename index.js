@@ -1,14 +1,15 @@
 'use strict';
 
 module.exports = function(S) {
-  const path     = require('path'),
-    SError       = require(S.getServerlessPath('Error')),
-    SCli         = require(S.getServerlessPath('utils/cli')),
-    BbPromise    = require('bluebird'),
-    async        = require('async'),
-    _            = require('lodash'),
-    mime         = require('mime'),
-    fs           = require('fs');
+  const path      = require('path'),
+    SError        = require(S.getServerlessPath('Error')),
+    SCli          = require(S.getServerlessPath('utils/cli')),
+    BbPromise     = require('bluebird'),
+    async         = require('async'),
+    _             = require('lodash'),
+    mime          = require('mime'),
+    detectCharEnc = require('detect-character-encoding'),
+    fs            = require('fs');
 
   class ClientDeploy extends S.classes.Plugin {
 
@@ -238,12 +239,17 @@ module.exports = function(S) {
       S.utils.sDebug(`Uploading file ${fileKey} to bucket ${_this.bucketName}...`);
 
       fs.readFile(filePath, function(err, fileBuffer) {
+        let contentType = mime.lookup(filePath);
+
+        if (contentType.match(/(text)|(json)|(javascript)/)) {
+          contentType =  contentType + '; charset=' + detectCharEnc(fileBuffer).encoding;
+        }
 
         let params = {
           Bucket: _this.bucketName,
           Key: fileKey,
           Body: fileBuffer,
-          ContentType: mime.lookup(filePath)
+          ContentType: contentType
         };
 
         // TODO: remove browser caching
