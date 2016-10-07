@@ -243,13 +243,27 @@ module.exports = function(S) {
           Bucket: _this.bucketName,
           Key: fileKey,
           Body: fileBuffer,
-          ContentType: mime.lookup(filePath)
+          ContentType: mime.lookup(filePath),
+          Expires: _this._cacheDuration(filePath),
         };
 
-        // TODO: remove browser caching
         return _this.aws.request('S3', 'putObject', params, _this.evt.options.stage, _this.evt.options.region)
       });
 
+    }
+
+    _cacheDuration(filePath) {
+      const CACHE_BRIEFLY = 60,
+          CACHE_FOREVER = 315576000; // 10 years
+		  let fileParts = path.basename(filePath).split('.');
+		  if (fileParts.length < 3) return CACHE_BRIEFLY;
+		  return (this._isHash(fileParts[fileParts.length - 2]))
+		    ? CACHE_FOREVER
+		    : CACHE_BRIEFLY;
+    }
+
+    _isHash(name) {
+      return (/^[a-f0-9]{20,32}$/).test(name) && (/[a-f].*[a-f]/).test(name) && (/[0-9].*[0-9]/).test(name);
     }
 
   }
