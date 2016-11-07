@@ -6,12 +6,12 @@ const async        = require('async');
 const _            = require('lodash');
 const mime         = require('mime');
 const fs           = require('fs');
-const AWS = require('serverless/lib/plugins/aws');
 
 class Client {
   constructor(serverless, options){
     this.serverless = serverless;
-    this.SDK = new AWS(this.serverless);
+    this.provider = 'aws';
+    this.aws = this.serverless.getProvider(this.provider);
     
     this.commands = {
       client: {
@@ -87,7 +87,7 @@ class Client {
       let params = {
         Bucket: this.bucketName
       };
-      return this.SDK.request('S3', 'listObjects', params, this.serverless.service.provider.stage, this.serverless.service.provider.region);
+      return this.aws.request('S3', 'listObjects', params, this.serverless.service.provider.stage, this.serverless.service.provider.region);
     }
 
     function deleteObjectsFromBucket(data) {
@@ -107,7 +107,7 @@ class Client {
           Delete: { Objects: Objects }
         };
         
-        return this.SDK.request('S3', 'deleteObjects', params, this.serverless.service.provider.stage, this.serverless.service.provider.region);
+        return this.aws.request('S3', 'deleteObjects', params, this.serverless.service.provider.stage, this.serverless.service.provider.region);
       }
     }
 
@@ -119,7 +119,7 @@ class Client {
         Bucket: this.bucketName
       };
       
-      return this.SDK.request('S3', 'createBucket', params, this.serverless.service.provider.stage, this.serverless.service.provider.region)
+      return this.aws.request('S3', 'createBucket', params, this.serverless.service.provider.stage, this.serverless.service.provider.region)
     }
 
     function configureBucket() {
@@ -133,7 +133,7 @@ class Client {
         }
       };
       
-      return this.SDK.request('S3', 'putBucketWebsite', params, this.serverless.service.provider.stage, this.serverless.service.provider.region)
+      return this.aws.request('S3', 'putBucketWebsite', params, this.serverless.service.provider.stage, this.serverless.service.provider.region)
     }
 
     function configurePolicyForBucket(){
@@ -160,10 +160,10 @@ class Client {
         Policy: JSON.stringify(policy)
       };
       
-      return this.SDK.request('S3', 'putBucketPolicy', params, this.serverless.service.provider.stage, this.serverless.service.provider.region);
+      return this.aws.request('S3', 'putBucketPolicy', params, this.serverless.service.provider.stage, this.serverless.service.provider.region);
     }
  
-    return this.SDK.request('S3', 'listBuckets', {}, this.serverless.service.provider.stage, this.serverless.service.provider.region)
+    return this.aws.request('S3', 'listBuckets', {}, this.serverless.service.provider.stage, this.serverless.service.provider.region)
       .bind(this)
       .then(listBuckets)
       .then(listObjectsInBucket)
@@ -212,7 +212,7 @@ class Client {
       };
 
       // TODO: remove browser caching
-      return _this.SDK.request('S3', 'putObject', params, _this.serverless.service.provider.stage, _this.serverless.service.provider.region);
+      return _this.aws.request('S3', 'putObject', params, _this.serverless.service.provider.stage, _this.serverless.service.provider.region);
     });
 
   }  
