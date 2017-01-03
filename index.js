@@ -6,13 +6,18 @@ const async        = require('async');
 const _            = require('lodash');
 const mime         = require('mime');
 const fs           = require('fs');
-const AWS = require('serverless/lib/plugins/aws');
+const S3 = require('aws-sdk/clients/s3');
 
 class Client {
   constructor(serverless, options){
     this.serverless = serverless;
-    this.SDK = new AWS(this.serverless);
-    
+    this.stage = options.stage || _.get(serverless, 'service.provider.stage')
+    this.region = options.region || _.get(serverless, 'service.provider.region');
+    this.s3 = BbPromise.promisifyAll(new S3({
+        apiVersion: '2006-03-01',
+        region: this.region
+    }));
+
     this.commands = {
       client: {
         usage: 'Generate and deploy clients',
@@ -39,7 +44,7 @@ class Client {
 
       'client:deploy:deploy': () => {
         this._validateAndPrepare()
-          .then(this._processDeployment.bind(this));     
+          .then(this._processDeployment.bind(this));
       }
     };
   }
@@ -65,9 +70,9 @@ class Client {
     return BbPromise.resolve();
   }
 
- 
+
   _processDeployment() {
-    this.serverless.cli.log('Deploying client to stage "' + this.serverless.service.provider.stage + '" in region "' + this.serverless.service.provider.region + '"...');
+    this.serverless.cli.log('Deploying client to stage "' + this.stage + '" in region "' + this.region + '"...');
 
 
     function listBuckets(data) {
@@ -87,7 +92,7 @@ class Client {
       let params = {
         Bucket: this.bucketName
       };
-      return this.SDK.request('S3', 'listObjects', params, this.serverless.service.provider.stage, this.serverless.service.provider.region);
+      return this.s3.listObjectsV2Async(params);
     }
 
     function deleteObjectsFromBucket(data) {
@@ -106,8 +111,8 @@ class Client {
           Bucket: this.bucketName,
           Delete: { Objects: Objects }
         };
-        
-        return this.SDK.request('S3', 'deleteObjects', params, this.serverless.service.provider.stage, this.serverless.service.provider.region);
+
+        return this.s3.deleteObjectsAsync(params);
       }
     }
 
@@ -118,8 +123,7 @@ class Client {
       let params = {
         Bucket: this.bucketName
       };
-      
-      return this.SDK.request('S3', 'createBucket', params, this.serverless.service.provider.stage, this.serverless.service.provider.region)
+      return this.s3.createBucketAsync(params);
     }
 
     function configureBucket() {
@@ -132,8 +136,8 @@ class Client {
           ErrorDocument: { Key: 'error.html' }
         }
       };
-      
-      return this.SDK.request('S3', 'putBucketWebsite', params, this.serverless.service.provider.stage, this.serverless.service.provider.region)
+
+      return this.s3.putBucketWebsiteAsync(params);
     }
 
     function configurePolicyForBucket(){
@@ -159,11 +163,11 @@ class Client {
         Bucket: this.bucketName,
         Policy: JSON.stringify(policy)
       };
-      
-      return this.SDK.request('S3', 'putBucketPolicy', params, this.serverless.service.provider.stage, this.serverless.service.provider.region);
+
+      return this.s3.putBucketPolicyAsync(params);
     }
- 
-    return this.SDK.request('S3', 'listBuckets', {}, this.serverless.service.provider.stage, this.serverless.service.provider.region)
+
+    return this.s3.listBucketsAsync()
       .bind(this)
       .then(listBuckets)
       .then(listObjectsInBucket)
@@ -212,10 +216,10 @@ class Client {
       };
 
       // TODO: remove browser caching
-      return _this.SDK.request('S3', 'putObject', params, _this.serverless.service.provider.stage, _this.serverless.service.provider.region);
+      return _this.s3.putObjectAsync(params);
     });
 
-  }  
+  }
 
 }
 
