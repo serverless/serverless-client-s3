@@ -6,17 +6,14 @@ const async        = require('async');
 const _            = require('lodash');
 const mime         = require('mime');
 const fs           = require('fs');
-const S3 = require('aws-sdk/clients/s3');
 
 class Client {
   constructor(serverless, options){
     this.serverless = serverless;
     this.stage = options.stage || _.get(serverless, 'service.provider.stage')
     this.region = options.region || _.get(serverless, 'service.provider.region');
-    this.s3 = BbPromise.promisifyAll(new S3({
-        apiVersion: '2006-03-01',
-        region: this.region
-    }));
+    this.provider = 'aws';
+    this.aws = this.serverless.getProvider(this.provider);
 
     this.commands = {
       client: {
@@ -92,7 +89,8 @@ class Client {
       let params = {
         Bucket: this.bucketName
       };
-      return this.s3.listObjectsV2Async(params);
+
+      return this.aws.request('S3', 'listObjectsV2', params, this.stage, this.region);
     }
 
     function deleteObjectsFromBucket(data) {
@@ -112,7 +110,7 @@ class Client {
           Delete: { Objects: Objects }
         };
 
-        return this.s3.deleteObjectsAsync(params);
+        return this.aws.request('S3', 'deleteObjects', params, this.stage, this.region);
       }
     }
 
@@ -123,7 +121,8 @@ class Client {
       let params = {
         Bucket: this.bucketName
       };
-      return this.s3.createBucketAsync(params);
+
+      return this.aws.request('S3', 'createBucket', params, this.stage, this.region)
     }
 
     function configureBucket() {
@@ -137,7 +136,7 @@ class Client {
         }
       };
 
-      return this.s3.putBucketWebsiteAsync(params);
+      return this.aws.request('S3', 'putBucketWebsite', params, this.stage, this.region)
     }
 
     function configurePolicyForBucket(){
@@ -164,10 +163,10 @@ class Client {
         Policy: JSON.stringify(policy)
       };
 
-      return this.s3.putBucketPolicyAsync(params);
+      return this.aws.request('S3', 'putBucketPolicy', params, this.stage, this.region);
     }
 
-    return this.s3.listBucketsAsync()
+    return this.aws.request('S3', 'listBuckets', {}, this.stage, this.region)
       .bind(this)
       .then(listBuckets)
       .then(listObjectsInBucket)
@@ -216,7 +215,7 @@ class Client {
       };
 
       // TODO: remove browser caching
-      return _this.s3.putObjectAsync(params);
+      return _this.aws.request('S3', 'putObject', params, _this.stage, _this.region);
     });
 
   }
