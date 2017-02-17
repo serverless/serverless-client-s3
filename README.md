@@ -28,7 +28,7 @@ npm install --save serverless-client-s3
 }
 ```
 
-* **Warning:** The plugin will overwrite any data you have in the bucket name you set above if it already exists.
+* **Warning:** The plugin will overwrite any data you have in the bucket name you set above if it already exists unless you specify `"keep": "true"` in custom.client
 * **Pro Tip:** To add staging and region functionality to your client, use Serverless Variables in the bucket name: `"bucket.name.for.the.client.${stage}.${region}"`
 
 
