@@ -105,6 +105,7 @@ module.exports = function(S) {
       }
 
       _this.bucketName = populatedProject.custom.client.bucketName;
+      _this.keepFiles = populatedProject.custom.client.keep;
       _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
 
       return BbPromise.resolve();
@@ -140,7 +141,7 @@ module.exports = function(S) {
           return _this.aws.request('S3', 'listObjects', params, _this.evt.options.stage, _this.evt.options.region)
         })
         .then(function(data){
-          if (!_this.bucketExists) return BbPromise.resolve();
+          if (!_this.bucketExists || _this.keepFiles) return BbPromise.resolve();
 
           S.utils.sDebug(`Deleting all objects from bucket ${_this.bucketName}...`);
 
