@@ -247,17 +247,10 @@ module.exports = function(S) {
           ContentType: mime.lookup(filePath)
         };
         
-        if (
-          _this.CacheControl && (
-            !_this.CacheControl.regex ||
-            filePath.match(new RegExp(_this.CacheControl.regex, "i")
-          )
-        ) {
+        if (_this.CacheControl && (!(_this.CacheControl.regex) || (filePath.match(new RegExp(_this.CacheControl.regex, "i"))))) {
           params.CacheControl = _this.CacheControl.value;
-        }
+        };
 
-
-        // TODO: remove browser caching
         return _this.aws.request('S3', 'putObject', params, _this.evt.options.stage, _this.evt.options.region)
       });
 
