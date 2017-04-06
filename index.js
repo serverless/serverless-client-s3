@@ -105,6 +105,7 @@ module.exports = function(S) {
       }
 
       _this.bucketName = populatedProject.custom.client.bucketName;
+      _this.CacheControl = populatedProject.custom.client.CacheControl;
       _this.clientPath = path.join(_this.project.getRootPath(), 'client', 'dist');
 
       return BbPromise.resolve();
@@ -245,8 +246,11 @@ module.exports = function(S) {
           Body: fileBuffer,
           ContentType: mime.lookup(filePath)
         };
+        
+        if (_this.CacheControl && (!(_this.CacheControl.regex) || (filePath.match(new RegExp(_this.CacheControl.regex, "i"))))) {
+          params.CacheControl = _this.CacheControl.value;
+        };
 
-        // TODO: remove browser caching
         return _this.aws.request('S3', 'putObject', params, _this.evt.options.stage, _this.evt.options.region)
       });
 
