@@ -22,7 +22,7 @@ plugins:
   - serverless-client-s3
  custom:
    client:
-     bucketName: whatsbertdoing-client
+     bucketName: serverless-client-bucketname
 ```
 
 * **Warning:** The plugin will overwrite any data you have in the bucket name you set above if it already exists.
