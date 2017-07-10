@@ -8,7 +8,7 @@ serverless-client-s3
 [![license](https://img.shields.io/npm/l/serverless-client-s3.svg)](https://www.npmjs.com/package/serverless-client-s3)
 
 
-A Serverless plugin that deploys a web client for your Serverless project to an S3 bucket, and make it publicaly available in seconds.
+A Serverless plugin that deploys a web client for your Serverless project to an S3 bucket, and make it publicly available in seconds.
 
 **First**, install:
 
