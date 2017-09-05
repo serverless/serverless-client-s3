@@ -1,3 +1,5 @@
+**DEPRECATION NOTICE: The NPM package of this project is not compatiable with v1.0+ of the Serverless Framework. Please use [serverless-finch](https://github.com/fernando-mc/serverless-finch) for an updated fork of this project.**
+
 serverless-client-s3
 ====================
 [![serverless](http://public.serverless.com/badges/v3.svg)](http://www.serverless.com)
